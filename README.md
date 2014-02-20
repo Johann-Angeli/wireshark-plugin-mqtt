@@ -28,6 +28,8 @@ Download and install the generic plugin corresponding to your environment in the
 Start Wireshark and verify your plugins folders as follows
 Help -> About Wireshark -> Folders
 
+![Wireshark folders](/screenshots/wireshark-folder.png "Wireshark folders")
+
 You'll find informations about your personal plugins folder and the shared plugins folder :
 * Personal Plugins : Your personnal plugins folder
 * Global Plugins : Shared plugins for all users of Wireshark
@@ -49,9 +51,17 @@ The verification of the installation is very simple. you just need to start Wire
 Normally, there is an automatic completion helping you to find the MQTT protocol.
 If MQTT appears in a green background then the installation is correct and you can start to decode MQTT messages.
 
+![Wireshark mqtt](/screenshots/wireshark-mqtt.png "Wireshark mqtt")
+
+Sample of MQTT messages decoding :
+
+![Wireshark mqtt decoder](/screenshots/wireshark-mqtt-decode.png "Wireshark mqtt decoder")
+
 If not, verify that the generic dissector plugin is well installed and loaded like this :
 Help -> About Wireshark -> Plugins
 Verify that dissector plugin generic.so (or generic.dll) is present.
+
+![Wireshark plugins](/screenshots/wireshark-plugins.png "Wireshark plugins")
 
 
 
