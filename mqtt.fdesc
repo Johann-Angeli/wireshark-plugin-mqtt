@@ -1,0 +1,378 @@
+# Generic dissector for MQTT based on MQTT V3.1 Protocol Specification
+# http://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html
+#
+# Johann ANGELI (02/2014)
+
+
+enum4 MQTTMessageType {
+    Reserved_0  0
+    CONNECT     1
+    CONNACK     2
+    PUBLISH     3
+    PUBACK      4
+    PUBREC      5
+    PUBREL      6
+    PUBCOMP     7
+    SUBSCRIBE   8
+    SUBACK      9
+    UNSUBSCRIBE 10
+    UNSUBACK    11
+    PINGREQ     12
+    PINGRESP    13
+    DISCONNECT  14
+    Reserved_15 15
+}
+
+enum8 MQTTConnectReturnCode {
+    connection_accepted                              0
+    connection_refused_unacceptable_protocol_version 1
+    connection_refused_identifier_rejected           2
+    connection_refused_server_unavailable            3
+    connection_refused_bad_username_or_password      4
+    connection_refused_not_authorized                5
+
+    #Todo : Manage reserved values
+    #From 6 to 255 : reserved for future use
+}
+
+enum2 MQTTQoS {
+    at_most_once    0
+    at_least_once   1
+    exactly_once    2
+    reserved        3
+}
+
+struct  MQTTFixedHeader
+{
+    byte_order      big_endian;
+
+    MQTTMessageType message_type;
+    bool1           dup;
+    MQTTQoS         qos;
+    bool1           retain;
+
+    hide var uint32 message_length = 1;   
+
+    hide var uint8  multiplier = 1;
+    hide var uint32 value = 0;
+        
+    do
+    {
+        hide uint8 length;
+        
+	set value = value + (length & 127) * multiplier;
+        set multiplier = multiplier * 128;
+
+        set message_length = message_length + 1;
+
+     } while ( (length & 128) !=0 );
+
+     var uint32 remaining_length = value;
+     set message_length = message_length + remaining_length;
+
+}
+
+struct MQTTConnectFlags {
+
+    bool1   username;
+    bool1   password;
+    bool1   will_retain;
+    MQTTQoS will_qos;
+    bool1   will;
+    bool1   clean_session;
+    uint1   reserved;
+
+}
+
+struct MQTTSubscribeQoS {
+
+    hide uint6 reserved;
+    MQTTQoS    qos;
+
+}
+
+struct MQTTSubScribeTopic {
+
+    hide uint16               topic_name_length;
+    string(topic_name_length) topic_name;
+
+    hide uint6                reserved;
+    MQTTQoS                   requested_qos;
+
+}
+
+###############################################################################
+# Messages Types
+###############################################################################
+
+# Reserved 0
+# Reserved message for futur use
+struct MQTTMessageReserved0 {
+
+    MQTTFixedHeader fixed_header;
+
+    # Variable header and payload (if any)
+
+    raw(fixed_header.remaining_length) content_of_message;
+
+}
+
+# CONNECT
+# Message with variable header
+# Message with payload
+struct MQTTMessageConnect {
+
+    MQTTFixedHeader                 fixed_header;
+
+    # Variable header
+
+    hide uint16                     protocol_name_length;
+    string(protocol_name_length)    protocol_name;
+    
+    uint8                           protocol_version_number;
+    MQTTConnectFlags                connect_flags;
+    uint16                          keep_alive_timer;
+    
+    # Payload
+
+    hide uint16                     client_id_length;
+    string(client_id_length)        client_id;
+
+    if (connect_flags.will == 1) {
+        hide uint16                 will_topic_length;
+	string(will_topic_length)   will_topic;
+
+        hide uint16                 will_message_length;
+	string(will_message_length) will_message;
+    }
+
+    if (connect_flags.username == 1) {
+        #Todo : verify the way the username can be null
+        hide uint16                 username_length;
+        string(username_length)     username;
+    }
+    if (connect_flags.password == 1) {
+        #Todo : verify the way the password can be null
+        hide uint16                 password_length;
+        string(password_length)     password;
+    }
+
+}
+
+# CONNACK
+# Message with variable header
+# Message without payload    
+struct MQTTMessageConnack {
+    MQTTFixedHeader       fixed_header;
+
+    # Variable header
+
+    uint8                 topic_name_compression_response;
+    MQTTConnectReturnCode connect_return_code;
+}
+
+# PUBLISH
+# Message with variable header
+# Message with payload
+struct MQTTMessagePublish {
+
+    MQTTFixedHeader     fixed_header;
+
+    # Variable header
+
+    hide uint16      topic_length;
+    string(topic_length)   topic;
+    
+    hide var uint8 variable_header_length = topic_length + 2;
+
+    if (fixed_header.qos == 1 || fixed_header.qos == 2 ) {
+        uint16          message_id;
+        set variable_header_length = variable_header_length + 2; 
+    }
+
+    # Payload
+
+    raw(fixed_header.remaining_length - variable_header_length)     payload;
+
+}
+
+# PUBACK
+# Message with variable header
+# Message without payload
+struct MQTTMessagePuback {
+
+    MQTTFixedHeader fixed_header;
+
+    # Variable header
+
+    uint16          message_id;
+
+}
+
+# PUBREC
+# Message with variable header
+# Message without payload
+struct MQTTMessagePubrec {
+
+    MQTTFixedHeader fixed_header;
+
+    # Variable header
+
+    uint16          message_id;
+
+}
+
+# PUBREL
+# Message with variable header
+# Message without payload
+struct MQTTMessagePubrel {
+
+    MQTTFixedHeader fixed_header;
+
+    # Variable header
+
+    uint16          message_id;
+
+}
+
+# PUBCOMP
+# Message with variable header
+# Message without payload
+struct MQTTMessagePubcomp {
+
+    MQTTFixedHeader fixed_header;
+
+    # Variable header
+
+    uint16          message_id;
+
+}
+
+# SUBSCRIBE
+# Message with variable header
+# Message with payload
+struct MQTTMessageSubscribe {
+    MQTTFixedHeader       fixed_header;
+
+    # Variable header
+
+    uint16                message_id;
+    
+    # Payload
+
+    MQTTSubScribeTopic[+] topics;
+
+}
+
+# SUBACK
+# Message with variable header
+# Message with payload
+struct MQTTMessageSuback {
+
+    MQTTFixedHeader     fixed_header;
+
+    # Variable header
+
+    uint16              message_id;
+    
+    # Payload
+
+    MQTTSubscribeQoS[+] granted_qos;
+
+}
+
+# UNSUBSCRIBE
+# Message with variable header
+# Message without payload
+struct MQTTMessageUnsubscribe {
+
+    MQTTFixedHeader fixed_header;
+
+    # Variable header
+
+    uint16          message_id;
+
+}
+
+# UNSUBACK
+# Message with variable header
+# Message without payload
+struct MQTTMessageUnsuback {
+
+    MQTTFixedHeader fixed_header;   
+
+    # Variable header
+
+    uint16          message_id;
+
+}
+
+# PINGREQ
+# Message without variable header
+# Message without payload
+struct MQTTMessagePingreq {
+
+    MQTTFixedHeader     fixed_header;
+
+}
+
+# PINGRESP
+# Message without variable header
+# Message without payload
+struct MQTTMessagePingresp {
+
+    MQTTFixedHeader     fixed_header;
+
+}
+
+# DISCONNECT
+# Message without variable header
+# Message without payload
+struct MQTTMessageDisconnect {
+
+    MQTTFixedHeader     fixed_header;
+
+}
+
+# Reserved 15
+# Reserved message for futur use
+struct MQTTMessageReserved15 {
+
+    MQTTFixedHeader fixed_header;
+
+    # Variable header and payload (if any)
+
+    raw(fixed_header.remaining_length) content_of_message;
+
+}
+  
+switch MQTTMessageSwitch MQTTMessageType {
+
+    case MQTTMessageType::Reserved_0 : MQTTMessageReserved0 "";
+
+    case MQTTMessageType::CONNECT :     MQTTMessageConnect "";
+    case MQTTMessageType::CONNACK :     MQTTMessageConnack "";
+
+    case MQTTMessageType::PUBLISH :     MQTTMessagePublish "";
+    case MQTTMessageType::PUBACK :      MQTTMessagePuback "";
+    case MQTTMessageType::PUBREC :      MQTTMessagePubrec "";
+    case MQTTMessageType::PUBREL :      MQTTMessagePubrel "";
+    case MQTTMessageType::PUBCOMP :     MQTTMessagePubcomp "";
+
+    case MQTTMessageType::SUBSCRIBE :   MQTTMessageSubscribe "";
+    case MQTTMessageType::SUBACK :      MQTTMessageSuback "";
+
+    case MQTTMessageType::UNSUBSCRIBE : MQTTMessageUnsubscribe "";
+    case MQTTMessageType::UNSUBACK :    MQTTMessageUnsuback "";
+
+    case MQTTMessageType::PINGREQ :     MQTTMessagePingreq "";
+    case MQTTMessageType::PINGRESP :    MQTTMessagePingresp "";
+
+    case MQTTMessageType::DISCONNECT :  MQTTMessageDisconnect "";
+
+    case MQTTMessageType::Reserved_15 : MQTTMessageReserved15 "";
+
+    default :
+        MQTTFixedHeader  fixed_header;
+        raw(fixed_header.remaining_length)  content_of_message;
+}
