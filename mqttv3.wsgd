@@ -2,13 +2,15 @@
 # DEBUG
 
 # Protocol's names.
-PROTONAME         MQTT Protocol
-PROTOSHORTNAME    MQTT
-PROTOABBREV       mqtt
+PROTONAME         MQTTv3 Protocol
+PROTOSHORTNAME    MQTTv3
+PROTOABBREV       mqttv3
 
 # Specify when the dissector is used.
+# Update 1883 to 61613(apollo)
 PARENT_SUBFIELD          tcp.port
-PARENT_SUBFIELD_VALUES   1883 
+# PARENT_SUBFIELD_VALUES   1883
+PARENT_SUBFIELD_VALUES   61613
 
 
 # Optional parameter.
@@ -78,4 +80,4 @@ PROTO_TYPE_DEFINITIONS
 # Debug flag only for interpreting the types (initialization)
 # DEBUG
 
-include  mqtt.fdesc ;
+include  mqttv3.fdesc ;
